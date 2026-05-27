@@ -38,6 +38,13 @@ function App() {
   const [message, setMessage] = useState({ text: '', type: '' });
   const [uploading, setUploading] = useState(false);
 
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+
   // Setup Axios Interceptors for JWT authorization header
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
@@ -239,6 +246,46 @@ function App() {
   const getProductDetails = (productId) => {
     const product = products.find(p => p.productId === productId);
     return product || { name: `Product ${productId}`, sku: 'N/A', category: 'N/A', unitPrice: 0.0, imageUrl: '' };
+  };
+
+  // Helper: Get filtered inventory based on user selections
+  const getFilteredInventory = () => {
+    return inventory.filter(item => {
+      const details = getProductDetails(item.productId);
+      
+      // 1. Search term match (Name or SKU)
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        const nameMatch = details.name && details.name.toLowerCase().includes(term);
+        const skuMatch = details.sku && details.sku.toLowerCase().includes(term);
+        if (!nameMatch && !skuMatch) return false;
+      }
+      
+      // 2. Category match
+      if (selectedCategory) {
+        if (details.category !== selectedCategory) return false;
+      }
+      
+      // 3. Stock Status match
+      if (selectedStatus) {
+        const isLowStock = item.quantityOnHand < item.reorderLevel;
+        if (selectedStatus === 'low' && !isLowStock) return false;
+        if (selectedStatus === 'instock' && (item.quantityOnHand === 0 || isLowStock)) return false;
+        if (selectedStatus === 'outofstock' && item.quantityOnHand > 0) return false;
+      }
+      
+      // 4. Min Price match
+      if (minPrice) {
+        if (details.unitPrice < parseFloat(minPrice)) return false;
+      }
+      
+      // 5. Max Price match
+      if (maxPrice) {
+        if (details.unitPrice > parseFloat(maxPrice)) return false;
+      }
+      
+      return true;
+    });
   };
 
   // If token is missing, display authentication interface
@@ -446,9 +493,84 @@ function App() {
       {/* Inventory Table */}
       <div className="inventory-table">
         <h2>Current Inventory</h2>
+        
+        {inventory.length > 0 && (
+          <div className="filter-toolbar">
+            <div className="filter-group keyword-search">
+              <input
+                type="text"
+                placeholder="Search Name or SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            
+            <div className="filter-group">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Categories</option>
+                {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">All Stock Statuses</option>
+                <option value="instock">In Stock</option>
+                <option value="low">Low Stock</option>
+                <option value="outofstock">Out of Stock</option>
+              </select>
+            </div>
+
+            <div className="filter-group price-range">
+              <input
+                type="number"
+                placeholder="Min $"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                className="price-input"
+              />
+              <span>to</span>
+              <input
+                type="number"
+                placeholder="Max $"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                className="price-input"
+              />
+            </div>
+
+            {(searchTerm || selectedCategory || selectedStatus || minPrice || maxPrice) && (
+              <button className="btn btn-secondary clear-filters-btn" onClick={() => {
+                setSearchTerm('');
+                setSelectedCategory('');
+                setSelectedStatus('');
+                setMinPrice('');
+                setMaxPrice('');
+              }}>
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
         {inventory.length === 0 ? (
           <div className="empty-state">
             <p>No products yet. Click "Add New Product" to get started!</p>
+          </div>
+        ) : getFilteredInventory().length === 0 ? (
+          <div className="empty-state">
+            <p>No products match your search or filter criteria.</p>
           </div>
         ) : (
           <table>
@@ -465,7 +587,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {inventory.map(item => {
+              {getFilteredInventory().map(item => {
                 const details = getProductDetails(item.productId);
                 const isLowStock = item.quantityOnHand < item.reorderLevel;
                 return (

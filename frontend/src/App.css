@@ -648,4 +648,116 @@ tr:hover {
   border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+/* Search & Filter Toolbar Styles */
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 15px;
+  background: #fbfbfb;
+  border-radius: 8px;
+  border: 1px solid #eaeaea;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group.keyword-search {
+  flex: 1.5;
+  min-width: 200px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.filter-select {
+  padding: 10px 14px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.filter-select:focus {
+  border-color: #000000;
+}
+
+.price-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #666666;
+  font-weight: 600;
+}
+
+.price-input {
+  width: 75px;
+  padding: 10px 8px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.price-input:focus {
+  border-color: #000000;
+}
+
+.clear-filters-btn {
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  border: 1px solid #dcdcdc;
+  background: #ffffff;
+  color: #333333;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.clear-filters-btn:hover {
+  background: #f0f0f0;
+  border-color: #bbbbbb;
+}
+
+@media (max-width: 768px) {
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-group.keyword-search {
+    flex: none;
+  }
+  .price-range {
+    justify-content: space-between;
+  }
+  .price-input {
+    flex: 1;
+  }
 }

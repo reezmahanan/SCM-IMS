@@ -101,8 +101,42 @@ class ProductController {
     private InventoryRepository inventoryRepository;
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        return ResponseEntity.ok(productRepository.findAll());
+    public ResponseEntity<List<Product>> getAllProducts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice) {
+        
+        List<Product> products = productRepository.findAll();
+        
+        if (search != null && !search.trim().isEmpty()) {
+            String keyword = search.toLowerCase().trim();
+            products = products.stream()
+                    .filter(p -> (p.getName() != null && p.getName().toLowerCase().contains(keyword)) || 
+                                 (p.getSku() != null && p.getSku().toLowerCase().contains(keyword)))
+                    .toList();
+        }
+        
+        if (category != null && !category.trim().isEmpty()) {
+            String cat = category.trim().toLowerCase();
+            products = products.stream()
+                    .filter(p -> p.getCategory() != null && p.getCategory().toLowerCase().equals(cat))
+                    .toList();
+        }
+        
+        if (minPrice != null) {
+            products = products.stream()
+                    .filter(p -> p.getUnitPrice() != null && p.getUnitPrice() >= minPrice)
+                    .toList();
+        }
+        
+        if (maxPrice != null) {
+            products = products.stream()
+                    .filter(p -> p.getUnitPrice() != null && p.getUnitPrice() <= maxPrice)
+                    .toList();
+        }
+        
+        return ResponseEntity.ok(products);
     }
 
     @PostMapping
