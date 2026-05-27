@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Login from './components/Login';
+import Register from './components/Register';
 import './App.css';
 
 function App() {
-  // State variables - like memory boxes
+  // Authentication State
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [username, setUsername] = useState(localStorage.getItem('username') || '');
+  const [role, setRole] = useState(localStorage.getItem('role') || '');
+  const [authView, setAuthView] = useState('login'); // 'login' or 'register'
+
+  // Application Data State
   const [inventory, setInventory] = useState([]);
+  const [products, setProducts] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
+  
+  // Modals Visibility
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showStockOps, setShowStockOps] = useState(false);
   
-  // Form data
+  // Form Data
   const [newProduct, setNewProduct] = useState({
     name: '',
     sku: '',
     category: '',
-    unitPrice: ''
+    unitPrice: '',
+    image: null
   });
   
   const [stockData, setStockData] = useState({
@@ -24,55 +36,151 @@ function App() {
   });
   
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [uploading, setUploading] = useState(false);
 
-  // Load data when page opens
+  // Setup Axios Interceptors for JWT authorization header
   useEffect(() => {
-    loadInventory();
-  }, []);
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        if (token) {
+          config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
 
-  // Get all inventory from backend
-  const loadInventory = async () => {
+    // Response interceptor to handle 403 / 401 (unauthorized) and log out
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          handleLogout();
+          showMessage('Session expired. Please log in again.', 'error');
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Clean up interceptors on unmount
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, [token]);
+
+  // Load data when page opens or token changes
+  useEffect(() => {
+    if (token) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Load both inventory and product details from backend
+  const loadData = async () => {
     try {
-      const res = await axios.get('http://localhost:8080/api/inventory');
-      setInventory(res.data);
+      // Fetch both endpoints concurrently
+      const [invRes, prodRes] = await Promise.all([
+        axios.get('http://localhost:8080/api/inventory'),
+        axios.get('http://localhost:8080/api/products')
+      ]);
+      
+      setInventory(invRes.data);
+      setProducts(prodRes.data);
       
       // Filter low stock items (quantity < 10)
-      const lowStock = res.data.filter(item => item.quantityOnHand < item.reorderLevel);
+      const lowStock = invRes.data.filter(item => item.quantityOnHand < item.reorderLevel);
       setLowStockItems(lowStock);
     } catch (error) {
-      showMessage('Cannot connect to server! Make sure backend is running.', 'error');
+      console.error("loadData error:", error);
+      showMessage('Cannot fetch data! Make sure backend is running.', 'error');
     }
+  };
+
+  // Login handlers
+  const handleLoginSuccess = (userToken, userNm, userRole) => {
+    localStorage.setItem('token', userToken);
+    localStorage.setItem('username', userNm);
+    localStorage.setItem('role', userRole);
+    setToken(userToken);
+    setUsername(userNm);
+    setRole(userRole);
+    showMessage(`Welcome back, ${userNm}!`, 'success');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    setToken('');
+    setUsername('');
+    setRole('');
+    setInventory([]);
+    setProducts([]);
+    setLowStockItems([]);
   };
 
   // Show popup message
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+  };
+
+  // Handle image file selection
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setNewProduct({ ...newProduct, image: e.target.files[0] });
+    }
   };
 
   // Add new product
   const addProduct = async () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.unitPrice) {
-      showMessage('Please fill all fields!', 'error');
+      showMessage('Please fill all required fields!', 'error');
       return;
     }
 
+    setUploading(true);
     try {
-      await axios.post('http://localhost:8080/api/products', {
+      // Step 1: Create product
+      const res = await axios.post('http://localhost:8080/api/products', {
         name: newProduct.name,
         sku: newProduct.sku,
         category: newProduct.category,
         unitPrice: parseFloat(newProduct.unitPrice)
       });
       
-      showMessage(' Product added successfully!', 'success');
-      setNewProduct({ name: '', sku: '', category: '', unitPrice: '' });
+      const createdProduct = res.data;
+
+      // Step 2: Upload image if selected
+      if (newProduct.image && createdProduct.productId) {
+        const formData = new FormData();
+        formData.append('image', newProduct.image);
+        
+        await axios.post(
+          `http://localhost:8080/api/products/${createdProduct.productId}/image`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+      }
+      
+      showMessage('Product added successfully!', 'success');
+      setNewProduct({ name: '', sku: '', category: '', unitPrice: '', image: null });
       setShowAddProduct(false);
-      loadInventory();
+      loadData();
     } catch (error) {
       const text = error?.response?.data?.message || error.message || 'Error adding product';
       showMessage(text, 'error');
       console.error('addProduct error:', error);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -93,9 +201,9 @@ function App() {
       showMessage(`Added ${stockData.quantity} units! (${res.data.previousQuantity} → ${res.data.newQuantity})`, 'success');
       setStockData({ productId: '', quantity: '', referenceDoc: '' });
       setShowStockOps(false);
-      loadInventory();
+      loadData();
     } catch (error) {
-      showMessage(' Error adding stock', 'error');
+      showMessage('Error adding stock', 'error');
     }
   };
 
@@ -114,31 +222,68 @@ function App() {
       });
       
       if (res.data.success) {
-        showMessage(` Sold ${stockData.quantity} units! (${res.data.previousQuantity} → ${res.data.newQuantity})`, 'success');
+        showMessage(`Sold ${stockData.quantity} units! (${res.data.previousQuantity} → ${res.data.newQuantity})`, 'success');
       } else {
-        showMessage(` ${res.data.error}`, 'error');
+        showMessage(`${res.data.error}`, 'error');
       }
       
       setStockData({ productId: '', quantity: '', referenceDoc: '' });
       setShowStockOps(false);
-      loadInventory();
+      loadData();
     } catch (error) {
-      showMessage(' Error reducing stock', 'error');
+      showMessage('Error reducing stock', 'error');
     }
   };
 
-  // Get product name by ID
-  const getProductName = (productId) => {
-    // You would need a products list for this
-    return `Product ${productId}`;
+  // Helper: Find product details by productId
+  const getProductDetails = (productId) => {
+    const product = products.find(p => p.productId === productId);
+    return product || { name: `Product ${productId}`, sku: 'N/A', category: 'N/A', unitPrice: 0.0, imageUrl: '' };
   };
+
+  // If token is missing, display authentication interface
+  if (!token) {
+    return (
+      <div className="auth-container">
+        <header className="auth-brand-header">
+          <h1>SCM-IMS Portal</h1>
+          <p>Supply Chain & Inventory Management System</p>
+        </header>
+
+        {message.text && (
+          <div className={`message ${message.type}`}>
+            {message.text}
+          </div>
+        )}
+
+        <div className="auth-wrapper">
+          {authView === 'login' ? (
+            <Login 
+              onLoginSuccess={handleLoginSuccess} 
+              onToggleRegister={() => setAuthView('register')} 
+            />
+          ) : (
+            <Register 
+              onRegisterSuccess={() => setAuthView('login')} 
+              onToggleLogin={() => setAuthView('login')} 
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
       {/* Header */}
       <header className="header">
-        <h1>Inventory Management System</h1>
-        <p>Track your products and stock levels easily</p>
+        <div className="header-title">
+          <h1>SCM Inventory Management</h1>
+          <p>Logged in as: <strong>{username}</strong> ({role})</p>
+        </div>
+        <button className="btn btn-secondary logout-btn" onClick={handleLogout}>
+          Sign Out
+        </button>
       </header>
 
       {/* Popup Message */}
@@ -169,10 +314,10 @@ function App() {
       {/* Action Buttons */}
       <div className="actions">
         <button className="btn btn-primary" onClick={() => setShowAddProduct(true)}>
-           Add New Product
+          Add New Product
         </button>
         <button className="btn btn-success" onClick={() => setShowStockOps(true)}>
-           Stock Operations
+          Stock Operations
         </button>
       </div>
 
@@ -181,33 +326,66 @@ function App() {
         <div className="modal">
           <div className="modal-content">
             <h2>Add New Product</h2>
-            <input
-              type="text"
-              placeholder="Product Name *"
-              value={newProduct.name}
-              onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="SKU (Unique Code) *"
-              value={newProduct.sku}
-              onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="Category"
-              value={newProduct.category}
-              onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-            />
-            <input
-              type="number"
-              placeholder="Price *"
-              value={newProduct.unitPrice}
-              onChange={(e) => setNewProduct({...newProduct, unitPrice: e.target.value})}
-            />
+            <div className="modal-form-group">
+              <label>Product Name *</label>
+              <input
+                type="text"
+                placeholder="Product Name"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+              />
+            </div>
+            
+            <div className="modal-form-group">
+              <label>SKU (Unique Code) *</label>
+              <input
+                type="text"
+                placeholder="SKU"
+                value={newProduct.sku}
+                onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+              />
+            </div>
+
+            <div className="modal-form-group">
+              <label>Category</label>
+              <input
+                type="text"
+                placeholder="Category"
+                value={newProduct.category}
+                onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+              />
+            </div>
+
+            <div className="modal-form-group">
+              <label>Unit Price ($) *</label>
+              <input
+                type="number"
+                placeholder="Price"
+                value={newProduct.unitPrice}
+                onChange={(e) => setNewProduct({...newProduct, unitPrice: e.target.value})}
+              />
+            </div>
+
+            <div className="modal-form-group">
+              <label>Product Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="file-input"
+              />
+              {newProduct.image && (
+                <p className="file-name-preview">Selected: {newProduct.image.name}</p>
+              )}
+            </div>
+
             <div className="modal-buttons">
-              <button className="btn btn-success" onClick={addProduct}>Save Product</button>
-              <button className="btn btn-danger" onClick={() => setShowAddProduct(false)}>Cancel</button>
+              <button className="btn btn-success" onClick={addProduct} disabled={uploading}>
+                {uploading ? 'Saving...' : 'Save Product'}
+              </button>
+              <button className="btn btn-danger" onClick={() => setShowAddProduct(false)} disabled={uploading}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -218,32 +396,47 @@ function App() {
         <div className="modal">
           <div className="modal-content">
             <h2>Stock Operations</h2>
-            <select
-              value={stockData.productId}
-              onChange={(e) => setStockData({...stockData, productId: e.target.value})}
-            >
-              <option value="">Select Product</option>
-              {inventory.map(item => (
-                <option key={item.productId} value={item.productId}>
-                  Product {item.productId} - Stock: {item.quantityOnHand}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Quantity"
-              value={stockData.quantity}
-              onChange={(e) => setStockData({...stockData, quantity: e.target.value})}
-            />
-            <input
-              type="text"
-              placeholder="Reference (PO/SO Number)"
-              value={stockData.referenceDoc}
-              onChange={(e) => setStockData({...stockData, referenceDoc: e.target.value})}
-            />
+            <div className="modal-form-group">
+              <label>Select Product *</label>
+              <select
+                value={stockData.productId}
+                onChange={(e) => setStockData({...stockData, productId: e.target.value})}
+              >
+                <option value="">Select Product</option>
+                {inventory.map(item => {
+                  const details = getProductDetails(item.productId);
+                  return (
+                    <option key={item.productId} value={item.productId}>
+                      {details.name} (SKU: {details.sku}) - Stock: {item.quantityOnHand}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="modal-form-group">
+              <label>Quantity *</label>
+              <input
+                type="number"
+                placeholder="Quantity"
+                value={stockData.quantity}
+                onChange={(e) => setStockData({...stockData, quantity: e.target.value})}
+              />
+            </div>
+
+            <div className="modal-form-group">
+              <label>Reference (PO/SO Number)</label>
+              <input
+                type="text"
+                placeholder="Reference"
+                value={stockData.referenceDoc}
+                onChange={(e) => setStockData({...stockData, referenceDoc: e.target.value})}
+              />
+            </div>
+
             <div className="modal-buttons">
-              <button className="btn btn-primary" onClick={addStock}>  Add Stock (IN)</button>
-              <button className="btn btn-warning" onClick={reduceStock}> Reduce Stock (OUT)</button>
+              <button className="btn btn-primary" onClick={addStock}>Add Stock (IN)</button>
+              <button className="btn btn-warning" onClick={reduceStock}>Reduce Stock (OUT)</button>
               <button className="btn btn-danger" onClick={() => setShowStockOps(false)}>Cancel</button>
             </div>
           </div>
@@ -261,8 +454,11 @@ function App() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Image</th>
+                <th>SKU</th>
                 <th>Product Name</th>
+                <th>Category</th>
+                <th>Price</th>
                 <th>Quantity</th>
                 <th>Reorder Level</th>
                 <th>Status</th>
@@ -270,18 +466,36 @@ function App() {
             </thead>
             <tbody>
               {inventory.map(item => {
+                const details = getProductDetails(item.productId);
                 const isLowStock = item.quantityOnHand < item.reorderLevel;
                 return (
                   <tr key={item.inventoryId} className={isLowStock ? 'low-stock-row' : ''}>
-                    <td>{item.productId}</td>
-                    <td>{getProductName(item.productId)}</td>
+                    <td>
+                      {details.imageUrl ? (
+                        <div className="product-image-container">
+                          <img 
+                            src={`http://localhost:8080${details.imageUrl}`} 
+                            alt={details.name} 
+                            className="product-thumbnail" 
+                          />
+                        </div>
+                      ) : (
+                        <div className="product-image-placeholder">
+                          {details.name ? details.name.charAt(0).toUpperCase() : '?'}
+                        </div>
+                      )}
+                    </td>
+                    <td className="sku-cell">{details.sku}</td>
+                    <td className="product-name-cell">{details.name}</td>
+                    <td><span className="category-tag">{details.category || 'General'}</span></td>
+                    <td className="price-cell">${details.unitPrice ? details.unitPrice.toFixed(2) : '0.00'}</td>
                     <td className={isLowStock ? 'low-stock' : ''}>
-                      {item.quantityOnHand}
+                      <strong>{item.quantityOnHand}</strong>
                     </td>
                     <td>{item.reorderLevel}</td>
                     <td>
                       {isLowStock ? (
-                        <span className="badge badge-danger"> Low Stock!</span>
+                        <span className="badge badge-danger">Low Stock!</span>
                       ) : (
                         <span className="badge badge-success">In Stock</span>
                       )}
@@ -296,7 +510,7 @@ function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>Inventory Management System </p>
+        <p>SCM Inventory Management System &copy; 2026. Security powered by JWT.</p>
       </footer>
     </div>
   );

@@ -369,7 +369,283 @@ tr:hover {
     padding: 8px;
   }
   
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
   .header h1 {
     font-size: 1.8rem;
   }
 }
+
+/* Authentication Styles */
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #fbfbfb;
+  padding: 20px;
+}
+
+.auth-brand-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-brand-header h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #000000;
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+}
+
+.auth-brand-header p {
+  color: #666666;
+  font-size: 1rem;
+}
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 420px;
+  perspective: 1000px;
+}
+
+.auth-card {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 16px;
+  border: 1px solid #eaeaea;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.auth-header h2 {
+  font-size: 1.6rem;
+  color: #000000;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.auth-header p {
+  font-size: 0.9rem;
+  color: #888888;
+}
+
+.auth-error {
+  background: #fdf2f2;
+  color: #ec5f5f;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  border: 1px solid #fbdad8;
+  text-align: center;
+}
+
+.auth-success {
+  background: #f2fdf5;
+  color: #27ae60;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  border: 1px solid #d5f4e6;
+  text-align: center;
+}
+
+.auth-form .form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-form label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.auth-form input,
+.auth-form select {
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background: #fcfcfc;
+}
+
+.auth-form input:focus,
+.auth-form select:focus {
+  outline: none;
+  border-color: #000000;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.btn-block {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 25px;
+  font-size: 0.9rem;
+  color: #666666;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #000000;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.btn-link:hover {
+  color: #333333;
+}
+
+.logout-btn {
+  background: #ffffff;
+  color: #000000;
+  border: 1.5px solid #000000;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  margin-left: 20px;
+}
+
+.logout-btn:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #333333;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Modal Form Groups */
+.modal-form-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.file-input {
+  border: 1px dashed #cccccc !important;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.file-name-preview {
+  font-size: 0.8rem;
+  color: #27ae60;
+  font-weight: 600;
+  margin-top: -8px;
+  margin-bottom: 10px;
+}
+
+/* Image Upload & Thumbnail styles */
+.product-image-container {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #eaeaea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fbfbfb;
+}
+
+.product-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.product-thumbnail:hover {
+  transform: scale(1.1);
+}
+
+.product-image-placeholder {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  background: #f0f0f0;
+  color: #888888;
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eaeaea;
+}
+
+.sku-cell {
+  font-family: monospace;
+  font-weight: 600;
+  color: #555555;
+}
+
+.price-cell {
+  font-weight: 600;
+}
+
+.product-name-cell {
+  font-weight: 600;
+  color: #000000;
+}
+
+.category-tag {
+  background: #f0f0f0;
+  color: #666666;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
