@@ -26,6 +26,19 @@ function Dashboard() {
   });
   
   const [message, setMessage] = useState({ text: '', type: '' });
+  
+  // Edit & Delete states
+  const [showEditProduct, setShowEditProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editProductData, setEditProductData] = useState({
+    name: '',
+    sku: '',
+    category: '',
+    unitPrice: '',
+    reorderLevel: ''
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteProductId, setDeleteProductId] = useState(null);
 
   // Load data when page opens
   useEffect(() => {
@@ -130,6 +143,61 @@ function Dashboard() {
       loadInventory();
     } catch (error) {
       showMessage(' Error reducing stock', 'error');
+    }
+  };
+
+  // Start editing a product
+  const startEdit = (product) => {
+    setEditingProduct(product);
+    setEditProductData({
+      name: product.name,
+      sku: product.sku,
+      category: product.category,
+      unitPrice: product.unitPrice,
+      reorderLevel: ''
+    });
+    setShowEditProduct(true);
+  };
+
+  // Save edited product
+  const saveEditedProduct = async () => {
+    if (!editProductData.name || !editProductData.sku || !editProductData.unitPrice) {
+      showMessage('Please fill required fields (Name, SKU, Price)!', 'error');
+      return;
+    }
+
+    try {
+      await axios.put(`http://localhost:8080/api/products/${editingProduct.productId}`, {
+        name: editProductData.name,
+        sku: editProductData.sku,
+        category: editProductData.category,
+        unitPrice: parseFloat(editProductData.unitPrice),
+        reorderLevel: editProductData.reorderLevel ? parseInt(editProductData.reorderLevel) : null
+      });
+      
+      showMessage('Product updated successfully!', 'success');
+      setShowEditProduct(false);
+      setEditingProduct(null);
+      loadInventory();
+    } catch (error) {
+      const text = error?.response?.data?.message || 'Error updating product';
+      showMessage(text, 'error');
+      console.error('editProduct error:', error);
+    }
+  };
+
+  // Delete product
+  const confirmDeleteProduct = async () => {
+    try {
+      await axios.delete(`http://localhost:8080/api/products/${deleteProductId}`);
+      
+      showMessage('Product deleted successfully!', 'success');
+      setShowDeleteConfirm(false);
+      setDeleteProductId(null);
+      loadInventory();
+    } catch (error) {
+      showMessage('Error deleting product', 'error');
+      console.error('deleteProduct error:', error);
     }
   };
 
@@ -282,6 +350,7 @@ function Dashboard() {
                 <th>Quantity</th>
                 <th>Reorder Level</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -302,6 +371,17 @@ function Dashboard() {
                         <span className="badge badge-success">In Stock</span>
                       )}
                     </td>
+                    <td>
+                      <button className="btn btn-small btn-primary" onClick={() => startEdit(item)}>
+                        Edit
+                      </button>
+                      <button className="btn btn-small btn-danger" onClick={() => {
+                        setDeleteProductId(item.productId);
+                        setShowDeleteConfirm(true);
+                      }}>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -309,6 +389,67 @@ function Dashboard() {
           </table>
         )}
       </div>
+
+      {/* Edit Product Modal */}
+      {showEditProduct && editingProduct && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Edit Product</h2>
+            <input
+              type="text"
+              placeholder="Product Name *"
+              value={editProductData.name}
+              onChange={(e) => setEditProductData({...editProductData, name: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="SKU (Unique Code) *"
+              value={editProductData.sku}
+              onChange={(e) => setEditProductData({...editProductData, sku: e.target.value})}
+            />
+            <input
+              type="text"
+              placeholder="Category"
+              value={editProductData.category}
+              onChange={(e) => setEditProductData({...editProductData, category: e.target.value})}
+            />
+            <input
+              type="number"
+              placeholder="Price *"
+              value={editProductData.unitPrice}
+              onChange={(e) => setEditProductData({...editProductData, unitPrice: e.target.value})}
+            />
+            <input
+              type="number"
+              placeholder="Reorder Level"
+              value={editProductData.reorderLevel}
+              onChange={(e) => setEditProductData({...editProductData, reorderLevel: e.target.value})}
+            />
+            <div className="modal-buttons">
+              <button className="btn btn-success" onClick={saveEditedProduct}>Save Changes</button>
+              <button className="btn btn-danger" onClick={() => setShowEditProduct(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h2>Confirm Delete</h2>
+            <p>Are you sure you want to delete this product? This action cannot be undone.</p>
+            <div className="modal-buttons">
+              <button className="btn btn-danger" onClick={confirmDeleteProduct}>
+                Yes, Delete Product
+              </button>
+              <button className="btn btn-primary" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="footer">
