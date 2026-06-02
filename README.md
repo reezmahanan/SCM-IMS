@@ -130,79 +130,54 @@ npm start
 Open http://localhost:3000/register
 
 Fill in:
-
-Username (unique)
-
-Password (minimum 6 characters)
-
-Role: Select from:
-
-USER - View only
-
-MANAGER - View + Stock operations
-
-ADMIN - Full control
-
-Click Register
+-Username (unique)
+-Password (minimum 6 characters)
+-Role: Select from:
+-USER - View only
+-MANAGER - View + Stock operations
+-ADMIN - Full control
+-Click Register
 
 ### 2. Login
-Enter your credentials
-
-Click Login
-
-You'll be redirected to the Dashboard
+-Enter your credentials
+-Click Login
+-You'll be redirected to the Dashboard
 
 ### 3. Dashboard Overview
-Card	Description
-Total Products	Count of all registered products
-Total Stock Units	Sum of all inventory quantities
-Low Stock Alerts	Number of items below reorder level (10 units)
+-Card	Description
+-Total Products	Count of all registered products
+-Total Stock Units	Sum of all inventory quantities
+-Low Stock Alerts	Number of items below reorder level (10 units)
 
 ### 4. Product Management (ADMIN only)
 Add Product:
-
-Click "Add New Product"
+-Click "Add New Product"
 
 Fill in:
-
-Product Name (required)
-
-SKU - Unique code (required)
-
-Category (optional)
-
-Unit Price (required)
-
-Click "Save Product"
+-Product Name (required)
+-SKU - Unique code (required)
+-Category (optional)
+-Unit Price (required)
+-Click "Save Product"
 
 Edit Product:
-
-Click "Edit" next to any product
-
-Update fields
-
-Click "Save Changes"
+-Click "Edit" next to any product
+-Update fields
+-Click "Save Changes"
 
 Delete Product:
-
-Click "Delete" next to any product
-
-Confirm deletion
+-Click "Delete" next to any product
+-Confirm deletion
 
 ### 5. Stock Operations (ADMIN/MANAGER only)
-Click "Stock Operations"
-
-Select a product from dropdown
-
-Enter quantity
-
-Add reference (PO/SO number)
+-Click "Stock Operations"
+-Select a product from dropdown
+-Enter quantity
+-Add reference (PO/SO number)
 
 Choose:
-
-Add Stock (IN) - Receive inventory
-
-Reduce Stock (OUT) - Sell/remove from inventory
+-Add Stock (IN) - Receive inventory
+-Reduce Stock (OUT) - Sell/remove from inventory
 
 ### 🔌 API Endpoints
 Authentication Endpoints
@@ -285,6 +260,7 @@ inventory-management-system/
 │
 ├── database-schema.sql                # Database schema reference
 └── README.md                          # This file
+
 ```
 
 ## UI Design
@@ -307,16 +283,16 @@ inventory-management-system/
 - Real-time data updates
 
 ### Security Configuration
-Role-Based Access Control
-Role	Permissions
-USER	View products and inventory only
-MANAGER	View + Add/Reduce stock operations
-ADMIN	Full control + Product CRUD operations
+-Role-Based Access Control
+-Role	Permissions
+-USER	View products and inventory only
+-MANAGER	View + Add/Reduce stock operations
+-ADMIN	Full control + Product CRUD operations
 
 ### JWT Configuration
-Token Validity: 24 hours
-Algorithm: HS256
-Storage: Client-side localStorage
+-Token Validity: 24 hours
+-Algorithm: HS256
+-Storage: Client-side localStorage
 
 ## CORS Configuration
 
