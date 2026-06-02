@@ -10,12 +10,47 @@ function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!credentials.username.trim()) {
+      setMessage({ text: 'Username is required', type: 'error' });
+      return;
+    }
+    if (!credentials.password) {
+      setMessage({ text: 'Password is required', type: 'error' });
+      return;
+    }
+    if (credentials.password.length < 6) {
+      setMessage({ text: 'Password must be at least 6 characters long', type: 'error' });
+      return;
+    }
+
     try {
       await axios.post('http://localhost:8080/api/auth/register', credentials);
       setMessage({ text: 'Registration successful! You can now login.', type: 'success' });
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setMessage({ text: err.response?.data || 'Registration failed', type: 'error' });
+      // Handle different error response formats
+      let errorMsg = 'Registration failed';
+      
+      if (err.response?.data) {
+        // If response.data is a string (plain text error message)
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        }
+        // If response.data is an object with a message property
+        else if (err.response.data.message) {
+          errorMsg = err.response.data.message;
+        }
+        // If response.data is an object with an error property
+        else if (err.response.data.error) {
+          errorMsg = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      setMessage({ text: errorMsg, type: 'error' });
     }
   };
 

@@ -17,7 +17,27 @@ function Login() {
       localStorage.setItem('role', res.data.role || 'USER');
       navigate('/');
     } catch (err) {
-      setError(err.response?.data || 'Login failed');
+      // Handle different error response formats
+      let errorMsg = 'Login failed';
+      
+      if (err.response?.data) {
+        // If response.data is a string (plain text error message)
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        }
+        // If response.data is an object with a message property
+        else if (err.response.data.message) {
+          errorMsg = err.response.data.message;
+        }
+        // If response.data is an object with an error property
+        else if (err.response.data.error) {
+          errorMsg = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      setError(errorMsg);
     }
   };
 

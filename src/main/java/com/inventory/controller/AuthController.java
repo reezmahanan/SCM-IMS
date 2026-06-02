@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -58,19 +59,19 @@ public class AuthController {
         } catch (BadCredentialsException e) {
             // Login Failed - log to DB
             saveAuditLog(authRequest.getUsername(), "FAILED", clientIp);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid username or password"));
         }
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest authRequest) {
         if (userRepository.findByUsername(authRequest.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("Username is already taken");
+            return ResponseEntity.badRequest().body(Map.of("message", "Username is already taken"));
         }
 
         // Add optional password length/strength validation as a secure authentication feature
         if (authRequest.getPassword() == null || authRequest.getPassword().length() < 6) {
-            return ResponseEntity.badRequest().body("Password must be at least 6 characters long");
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 6 characters long"));
         }
 
         User user = new User();
@@ -86,13 +87,13 @@ public class AuthController {
             if (upperRole.equals("ADMIN") || upperRole.equals("MANAGER") || upperRole.equals("USER")) {
                 user.setRole(upperRole);
             } else {
-                return ResponseEntity.badRequest().body("Invalid role. Allowed roles: USER, MANAGER, ADMIN");
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid role. Allowed roles: USER, MANAGER, ADMIN"));
             }
         }
 
         userRepository.save(user);
 
-        return ResponseEntity.ok("User registered successfully");
+        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
 
     private void saveAuditLog(String username, String status, String ipAddress) {
