@@ -20,4 +20,6 @@ public class Product {
     private String category;
 
     private Double unitPrice;
+
+    private String imageUrl;
 }

@@ -6,11 +6,22 @@ import com.inventory.repository.InventoryRepository;
 import com.inventory.repository.ProductRepository;
 import com.inventory.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -108,5 +119,68 @@ class ProductController {
         inventoryRepository.save(inventory);
 
         return ResponseEntity.ok(savedProduct);
+    }
+
+    @PostMapping("/{id}/image")
+    public ResponseEntity<Map<String, Object>> uploadImage(@PathVariable Long id, @RequestParam("image") MultipartFile file) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Product product = productRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            // Create uploads directory if not exists
+            Path uploadPath = Paths.get("uploads");
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            // Generate a unique file name
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFilename != null && originalFilename.lastIndexOf(".") != -1) {
+                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String filename = UUID.randomUUID().toString() + fileExtension;
+
+            // Save the file
+            Path filePath = uploadPath.resolve(filename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            // Update product
+            String imageUrl = "http://localhost:8080/api/products/images/" + filename;
+            product.setImageUrl(imageUrl);
+            productRepository.save(product);
+
+            response.put("success", true);
+            response.put("imageUrl", imageUrl);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @GetMapping("/images/{filename:.+}")
+    public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
+        try {
+            Path filePath = Paths.get("uploads").resolve(filename);
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                String contentType = Files.probeContentType(filePath);
+                if (contentType == null) {
+                    contentType = "application/octet-stream";
+                }
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }

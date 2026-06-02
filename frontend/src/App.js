@@ -9,13 +9,21 @@ function App() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showStockOps, setShowStockOps] = useState(false);
   
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [sortBy, setSortBy] = useState('');
+
   // Form data
   const [newProduct, setNewProduct] = useState({
     name: '',
     sku: '',
     category: '',
-    unitPrice: ''
+    unitPrice: '',
+    imageUrl: ''
   });
+  const [newProductImage, setNewProductImage] = useState(null);
   
   const [stockData, setStockData] = useState({
     productId: '',
@@ -58,15 +66,36 @@ function App() {
     }
 
     try {
-      await axios.post('http://localhost:8080/api/products', {
+      // 1. Create the product
+      const res = await axios.post('http://localhost:8080/api/products', {
         name: newProduct.name,
         sku: newProduct.sku,
         category: newProduct.category,
-        unitPrice: parseFloat(newProduct.unitPrice)
+        unitPrice: parseFloat(newProduct.unitPrice),
+        imageUrl: newProduct.imageUrl
       });
       
-      showMessage(' Product added successfully!', 'success');
-      setNewProduct({ name: '', sku: '', category: '', unitPrice: '' });
+      const createdProduct = res.data;
+
+      // 2. Upload image file if selected
+      if (newProductImage) {
+        const formData = new FormData();
+        formData.append('image', newProductImage);
+        try {
+          await axios.post(`http://localhost:8080/api/products/${createdProduct.productId}/image`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          showMessage('Product added, but image upload failed!', 'warning');
+        }
+      }
+      
+      showMessage('Product added successfully!', 'success');
+      setNewProduct({ name: '', sku: '', category: '', unitPrice: '', imageUrl: '' });
+      setNewProductImage(null);
       setShowAddProduct(false);
       loadInventory();
     } catch (error) {
@@ -95,7 +124,7 @@ function App() {
       setShowStockOps(false);
       loadInventory();
     } catch (error) {
-      showMessage(' Error adding stock', 'error');
+      showMessage('Error adding stock', 'error');
     }
   };
 
@@ -114,24 +143,71 @@ function App() {
       });
       
       if (res.data.success) {
-        showMessage(` Sold ${stockData.quantity} units! (${res.data.previousQuantity} → ${res.data.newQuantity})`, 'success');
+        showMessage(`Sold ${stockData.quantity} units! (${res.data.previousQuantity} → ${res.data.newQuantity})`, 'success');
       } else {
-        showMessage(` ${res.data.error}`, 'error');
+        showMessage(`${res.data.error}`, 'error');
       }
       
       setStockData({ productId: '', quantity: '', referenceDoc: '' });
       setShowStockOps(false);
       loadInventory();
     } catch (error) {
-      showMessage(' Error reducing stock', 'error');
+      showMessage('Error reducing stock', 'error');
     }
   };
 
-  // Get product name by ID
-  const getProductName = (productId) => {
-    // You would need a products list for this
-    return `Product ${productId}`;
-  };
+  // Dynamic categories compiled from inventory list
+  const categories = [...new Set(inventory.map(item => item.product?.category).filter(Boolean))];
+
+  // Client-side search, filter and sort implementation
+  const filteredInventory = inventory.filter(item => {
+    const product = item.product || {};
+    const name = (product.name || '').toLowerCase();
+    const sku = (product.sku || '').toLowerCase();
+    const category = (product.category || '').toLowerCase();
+    const search = searchQuery.toLowerCase();
+
+    // 1. Search Query filter (matches name, SKU, or category)
+    const matchesSearch = name.includes(search) || sku.includes(search) || category.includes(search) || item.productId.toString().includes(search);
+
+    // 2. Category filter
+    const matchesCategory = !selectedCategory || product.category === selectedCategory;
+
+    // 3. Stock Status filter
+    const isLowStock = item.quantityOnHand < item.reorderLevel;
+    const isOutOfStock = item.quantityOnHand === 0;
+    
+    let matchesStatus = true;
+    if (selectedStatus === 'low') {
+      matchesStatus = isLowStock;
+    } else if (selectedStatus === 'out') {
+      matchesStatus = isOutOfStock;
+    } else if (selectedStatus === 'in') {
+      matchesStatus = !isLowStock && item.quantityOnHand > 0;
+    }
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  }).sort((a, b) => {
+    if (!sortBy) return 0;
+    
+    const prodA = a.product || {};
+    const prodB = b.product || {};
+
+    if (sortBy === 'name-asc') {
+      return (prodA.name || '').localeCompare(prodB.name || '');
+    } else if (sortBy === 'name-desc') {
+      return (prodB.name || '').localeCompare(prodA.name || '');
+    } else if (sortBy === 'price-asc') {
+      return (prodA.unitPrice || 0) - (prodB.unitPrice || 0);
+    } else if (sortBy === 'price-desc') {
+      return (prodB.unitPrice || 0) - (prodA.unitPrice || 0);
+    } else if (sortBy === 'qty-asc') {
+      return a.quantityOnHand - b.quantityOnHand;
+    } else if (sortBy === 'qty-desc') {
+      return b.quantityOnHand - a.quantityOnHand;
+    }
+    return 0;
+  });
 
   return (
     <div className="app">
@@ -205,9 +281,29 @@ function App() {
               value={newProduct.unitPrice}
               onChange={(e) => setNewProduct({...newProduct, unitPrice: e.target.value})}
             />
-            <div className="modal-buttons">
+            <input
+              type="text"
+              placeholder="Image URL (Optional)"
+              value={newProduct.imageUrl || ''}
+              onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})}
+            />
+            <div className="image-upload-wrapper">
+              <label className="file-upload-label">
+                <span>Upload Image File (Optional)</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewProductImage(e.target.files[0])}
+                />
+              </label>
+              {newProductImage && <span className="file-name">{newProductImage.name}</span>}
+            </div>
+            <div className="modal-buttons" style={{ marginTop: '15px' }}>
               <button className="btn btn-success" onClick={addProduct}>Save Product</button>
-              <button className="btn btn-danger" onClick={() => setShowAddProduct(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => {
+                setShowAddProduct(false);
+                setNewProductImage(null);
+              }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -225,7 +321,7 @@ function App() {
               <option value="">Select Product</option>
               {inventory.map(item => (
                 <option key={item.productId} value={item.productId}>
-                  Product {item.productId} - Stock: {item.quantityOnHand}
+                  {item.product?.name || `Product ${item.productId}`} - Stock: {item.quantityOnHand}
                 </option>
               ))}
             </select>
@@ -252,36 +348,144 @@ function App() {
 
       {/* Inventory Table */}
       <div className="inventory-table">
-        <h2>Current Inventory</h2>
-        {inventory.length === 0 ? (
+        <div className="table-header-row">
+          <h2>Current Inventory</h2>
+          
+          {/* Search & Filter Controls */}
+          <div className="filters-bar">
+            <div className="search-box">
+              <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="clear-btn" onClick={() => setSearchQuery('')}>&times;</button>
+              )}
+            </div>
+
+            <div className="filter-group">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="in">In Stock</option>
+                <option value="low">Low Stock</option>
+                <option value="out">Out of Stock</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="">Sort By</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="price-asc">Price (Low → High)</option>
+                <option value="price-desc">Price (High → Low)</option>
+                <option value="qty-asc">Quantity (Low → High)</option>
+                <option value="qty-desc">Quantity (High → Low)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {filteredInventory.length === 0 ? (
           <div className="empty-state">
-            <p>No products yet. Click "Add New Product" to get started!</p>
+            <p>No products match your search/filters.</p>
           </div>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Product Name</th>
+                <th>Product Info</th>
+                <th>Category</th>
+                <th>Unit Price</th>
                 <th>Quantity</th>
                 <th>Reorder Level</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {inventory.map(item => {
+              {filteredInventory.map(item => {
+                const product = item.product || {};
                 const isLowStock = item.quantityOnHand < item.reorderLevel;
+                const isOutOfStock = item.quantityOnHand === 0;
+
+                // Function to get initials for placeholder
+                const getInitials = (name) => {
+                  if (!name) return 'P';
+                  return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                };
+
                 return (
-                  <tr key={item.inventoryId} className={isLowStock ? 'low-stock-row' : ''}>
-                    <td>{item.productId}</td>
-                    <td>{getProductName(item.productId)}</td>
-                    <td className={isLowStock ? 'low-stock' : ''}>
-                      {item.quantityOnHand}
+                  <tr key={item.inventoryId} className={isOutOfStock ? 'out-of-stock-row' : isLowStock ? 'low-stock-row' : ''}>
+                    <td>
+                      <div className="product-cell">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name || 'Product'}
+                            className="product-thumbnail"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        {(!product.imageUrl || product.imageUrl === '') ? (
+                          <div className="product-placeholder">
+                            {getInitials(product.name)}
+                          </div>
+                        ) : (
+                          <div className="product-placeholder" style={{ display: 'none' }}>
+                            {getInitials(product.name)}
+                          </div>
+                        )}
+                        <div className="product-details">
+                          <span className="product-name">{product.name || 'Unnamed Product'}</span>
+                          <span className="product-sku">{product.sku || 'No SKU'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="category-pill">{product.category || 'General'}</span>
+                    </td>
+                    <td>
+                      <span className="price-tag">${(product.unitPrice || 0).toFixed(2)}</span>
+                    </td>
+                    <td className={isOutOfStock ? 'out-of-stock-text' : isLowStock ? 'low-stock-text' : ''}>
+                      <div className="stock-level-cell">
+                        <strong>{item.quantityOnHand}</strong>
+                        <div className="stock-bar-bg">
+                          <div 
+                            className={`stock-bar-fill ${isOutOfStock ? 'out' : isLowStock ? 'low' : 'ok'}`} 
+                            style={{ width: `${Math.min((item.quantityOnHand / (item.reorderLevel * 2)) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td>{item.reorderLevel}</td>
                     <td>
-                      {isLowStock ? (
-                        <span className="badge badge-danger"> Low Stock!</span>
+                      {isOutOfStock ? (
+                        <span className="badge badge-out">Out of Stock</span>
+                      ) : isLowStock ? (
+                        <span className="badge badge-danger">Low Stock!</span>
                       ) : (
                         <span className="badge badge-success">In Stock</span>
                       )}

@@ -14,6 +14,10 @@ public class Inventory {
     @Column(nullable = false)
     private Long productId;
 
+    @OneToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "productId", insertable = false, updatable = false)
+    private Product product;
+
     private Integer quantityOnHand = 0;
     private Integer reorderLevel = 10;
 }
