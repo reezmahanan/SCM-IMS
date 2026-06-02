@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     Optional<Inventory> findByProductId(Long productId);
     List<Inventory> findByQuantityOnHandLessThan(Integer reorderLevel);
+    void deleteByProductId(Long productId);
 }

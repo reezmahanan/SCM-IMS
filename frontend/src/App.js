@@ -14,6 +14,7 @@ function App() {
   const [lowStockItems, setLowStockItems] = useState([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showStockOps, setShowStockOps] = useState(false);
+  const [showEditProduct, setShowEditProduct] = useState(false);
   
   // Image Lightbox state
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -38,12 +39,39 @@ function App() {
     quantity: '',
     referenceDoc: ''
   });
+
+  const [editingProduct, setEditingProduct] = useState({
+    productId: '',
+    name: '',
+    sku: '',
+    category: '',
+    unitPrice: '',
+    reorderLevel: ''
+  });
   
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Load data when page opens
   useEffect(() => {
     loadData();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch both products and inventory
+  const loadData = async () => {
+    try {
+      // Load products first
+      const productsRes = await axios.get('http://localhost:8080/api/products');
+      setProducts(productsRes.data);
+
+      // Load inventory
+      const inventoryRes = await axios.get('http://localhost:8080/api/inventory');
+      setInventory(inventoryRes.data);
+      
+      // Filter low stock items (quantity < reorderLevel)
+      const lowStock = inventoryRes.data.filter(item => item.quantityOnHand < item.reorderLevel);
+
   }, []);
 
   // Load products and inventory from backend
@@ -59,6 +87,7 @@ function App() {
       
       // Filter low stock items (quantity < 10)
       const lowStock = invRes.data.filter(item => item.quantityOnHand < item.reorderLevel);
+
       setLowStockItems(lowStock);
     } catch (error) {
       showMessage('Cannot connect to server! Make sure backend is running.', 'error');
@@ -106,7 +135,10 @@ function App() {
       });
       
       showMessage('Product added successfully!', 'success');
+      setNewProduct({ name: '', sku: '', category: '', unitPrice: '' });
+
       setNewProduct({ name: '', sku: '', category: '', unitPrice: '', image: '' });
+
       setShowAddProduct(false);
       loadData();
     } catch (error) {
@@ -181,6 +213,86 @@ function App() {
     }
   };
 
+
+  // Helper functions for matching product details in inventory list
+  const getProductName = (productId) => {
+    const product = products.find(p => p.productId === productId);
+    return product ? product.name : `Product ${productId}`;
+  };
+
+  const getProductSku = (productId) => {
+    const product = products.find(p => p.productId === productId);
+    return product ? product.sku : '-';
+  };
+
+  const getProductCategory = (productId) => {
+    const product = products.find(p => p.productId === productId);
+    return product ? product.category || 'General' : '-';
+  };
+
+  const getProductPrice = (productId) => {
+    const product = products.find(p => p.productId === productId);
+    return product ? `$${product.unitPrice.toFixed(2)}` : '-';
+  };
+
+  // Handle Edit Button Click
+  const handleEditClick = (item) => {
+    const product = products.find(p => p.productId === item.productId);
+    if (product) {
+      setEditingProduct({
+        productId: product.productId,
+        name: product.name,
+        sku: product.sku,
+        category: product.category || '',
+        unitPrice: product.unitPrice,
+        reorderLevel: item.reorderLevel
+      });
+      setShowEditProduct(true);
+    }
+  };
+
+  // Save product changes
+  const saveProductEdit = async () => {
+    if (!editingProduct.name || !editingProduct.sku || !editingProduct.unitPrice) {
+      showMessage('Please fill all required fields!', 'error');
+      return;
+    }
+
+    try {
+      await axios.put(`http://localhost:8080/api/products/${editingProduct.productId}`, {
+        name: editingProduct.name,
+        sku: editingProduct.sku,
+        category: editingProduct.category,
+        unitPrice: parseFloat(editingProduct.unitPrice),
+        reorderLevel: parseInt(editingProduct.reorderLevel)
+      });
+
+      showMessage('Product updated successfully!', 'success');
+      setShowEditProduct(false);
+      loadData();
+    } catch (error) {
+      const text = error?.response?.data?.message || error.message || 'Error updating product';
+      showMessage(text, 'error');
+    }
+  };
+
+  // Delete product action
+  const handleDeleteClick = async (productId) => {
+    const name = getProductName(productId);
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${name}"?\nThis will permanently delete the product, its stock levels, and transaction history!`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`http://localhost:8080/api/products/${productId}`);
+      showMessage('Product deleted successfully!', 'success');
+      loadData();
+    } catch (error) {
+      showMessage('Error deleting product', 'error');
+    }
+
   // Helper resolvers
   const getProduct = (productId) => {
     return products.find(p => p.productId === productId) || null;
@@ -196,6 +308,7 @@ function App() {
       return <Navigate to="/login" replace />;
     }
     return children;
+
 
   };
 
@@ -357,6 +470,64 @@ function App() {
         </div>
       )}
 
+      {/* Edit Product Modal */}
+      {showEditProduct && (
+        <div className="modal">
+          <div className="modal-content">
+            <h2>Edit Product Details</h2>
+            <div className="form-group">
+              <label>Product Name *</label>
+              <input
+                type="text"
+                placeholder="Product Name *"
+                value={editingProduct.name}
+                onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>SKU (Unique Code) *</label>
+              <input
+                type="text"
+                placeholder="SKU (Unique Code) *"
+                value={editingProduct.sku}
+                onChange={(e) => setEditingProduct({...editingProduct, sku: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Category</label>
+              <input
+                type="text"
+                placeholder="Category"
+                value={editingProduct.category}
+                onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Unit Price ($) *</label>
+              <input
+                type="number"
+                placeholder="Price *"
+                value={editingProduct.unitPrice}
+                onChange={(e) => setEditingProduct({...editingProduct, unitPrice: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Reorder Level *</label>
+              <input
+                type="number"
+                placeholder="Reorder Level *"
+                value={editingProduct.reorderLevel}
+                onChange={(e) => setEditingProduct({...editingProduct, reorderLevel: e.target.value})}
+              />
+            </div>
+            <div className="modal-buttons">
+              <button className="btn btn-success" onClick={saveProductEdit}>Save Changes</button>
+              <button className="btn btn-danger" onClick={() => setShowEditProduct(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stock Operations Modal */}
       {showStockOps && (
         <div className="modal">
@@ -480,10 +651,14 @@ function App() {
               <tr>
                 <th className="td-image">Image</th>
                 <th>ID</th>
+                <th>SKU</th>
                 <th>Product Name</th>
+                <th>Category</th>
+                <th>Price</th>
                 <th>Quantity</th>
                 <th>Reorder Level</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -512,8 +687,16 @@ function App() {
                       )}
                     </td>
                     <td>{item.productId}</td>
+
+                    <td><code className="sku-badge">{getProductSku(item.productId)}</code></td>
+                    <td><strong>{getProductName(item.productId)}</strong></td>
+                    <td>{getProductCategory(item.productId)}</td>
+                    <td>{getProductPrice(item.productId)}</td>
+                    <td className={isLowStock ? 'low-stock font-bold' : ''}>
+
                     <td>{prodName}</td>
                     <td className={isLowStock ? 'low-stock' : ''}>
+
                       {item.quantityOnHand}
                     </td>
                     <td>{item.reorderLevel}</td>
@@ -523,6 +706,16 @@ function App() {
                       ) : (
                         <span className="badge badge-success">In Stock</span>
                       )}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button className="btn btn-small btn-edit" onClick={() => handleEditClick(item)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-small btn-delete" onClick={() => handleDeleteClick(item.productId)}>
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -4,9 +4,11 @@ import com.inventory.entity.Inventory;
 import com.inventory.entity.Product;
 import com.inventory.repository.InventoryRepository;
 import com.inventory.repository.ProductRepository;
+import com.inventory.repository.StockTransactionRepository;
 import com.inventory.service.InventoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
@@ -92,6 +94,9 @@ class ProductController {
     @Autowired
     private InventoryRepository inventoryRepository;
 
+    @Autowired
+    private StockTransactionRepository transactionRepository;
+
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
         return ResponseEntity.ok(productRepository.findAll());
@@ -108,5 +113,60 @@ class ProductController {
         inventoryRepository.save(inventory);
 
         return ResponseEntity.ok(savedProduct);
+    }
+
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        String name = (String) request.get("name");
+        String sku = (String) request.get("sku");
+        String category = (String) request.get("category");
+        Double unitPrice = Double.valueOf(request.get("unitPrice").toString());
+        Integer reorderLevel = request.get("reorderLevel") != null ? Integer.valueOf(request.get("reorderLevel").toString()) : null;
+
+        // SKU Uniqueness Check
+        if (sku != null && !sku.equals(product.getSku())) {
+            List<Product> allProducts = productRepository.findAll();
+            boolean skuExists = allProducts.stream().anyMatch(p -> sku.equalsIgnoreCase(p.getSku()));
+            if (skuExists) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Product with SKU '" + sku + "' already exists!");
+                return ResponseEntity.badRequest().body(error);
+            }
+        }
+
+        product.setName(name);
+        product.setSku(sku);
+        product.setCategory(category);
+        product.setUnitPrice(unitPrice);
+        Product updatedProduct = productRepository.save(product);
+
+        if (reorderLevel != null) {
+            Inventory inventory = inventoryRepository.findByProductId(id)
+                    .orElseThrow(() -> new RuntimeException("Inventory not found for product"));
+            inventory.setReorderLevel(reorderLevel);
+            inventoryRepository.save(inventory);
+        }
+
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> deleteProduct(@PathVariable Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        inventoryRepository.deleteByProductId(id);
+        transactionRepository.deleteByProductId(id);
+        productRepository.delete(product);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Product deleted successfully");
+        return ResponseEntity.ok(response);
     }
 }
