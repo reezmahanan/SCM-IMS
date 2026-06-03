@@ -947,7 +947,7 @@ function Dashboard() {
       )}
       {/* Footer */}
       <footer className="footer">
-        <p>Inventory Management System • Full Stack Admin Terminal</p>
+        <p>Inventory Management System • </p>
       </footer>
     </div>
   );
