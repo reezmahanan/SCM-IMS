@@ -98,7 +98,7 @@ inventory-management-system/
 
 Before running the project, install:
 
-* Java 21
+* Java 17
 * Node.js 18+
 * MySQL 8.0+
 * Maven
