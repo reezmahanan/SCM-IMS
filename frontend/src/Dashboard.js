@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './App.css';
+
 const normalizeCategory = (cat) => {
   if (!cat) return 'Uncategorized';
   const trimmed = cat.trim();
   if (!trimmed) return 'Uncategorized';
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
+
 function Dashboard() {
-  const navigate = useNavigate();
 
   // Core State
   const [inventory, setInventory] = useState([]);
@@ -25,6 +25,7 @@ function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [stockFilter, setStockFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('id');
+
   // Form State
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -55,13 +56,16 @@ function Dashboard() {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteProductId, setDeleteProductId] = useState(null);
+
   // Lightbox State
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxTitle, setLightboxTitle] = useState('');
+
   // Initial Load
   useEffect(() => {
     loadInventory();
   }, []);
+
   // Fetch Inventory and Products simultaneously
   const loadInventory = async () => {
     try {
@@ -80,18 +84,16 @@ function Dashboard() {
       const lowStock = inventoryRes.data.filter(item => item.quantityOnHand < item.reorderLevel);
       setLowStockItems(lowStock);
     } catch (error) {
-      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-        handleLogout();
-      } else {
-        showMessage('Cannot connect to server! Make sure backend is running.', 'error');
-      }
+      showMessage('Cannot connect to server! Make sure backend is running.', 'error');
     }
   };
+
   // Popup status messages
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 4000);
   };
+
   // Get combined details for product by ID
   const getProductDetails = (productId) => {
     return products.find(p => p.productId === productId) || {
@@ -102,6 +104,7 @@ function Dashboard() {
       image: null
     };
   };
+
   // Convert uploaded image to Base64
   const handleImageUpload = (e, target) => {
     const file = e.target.files[0];
@@ -122,12 +125,14 @@ function Dashboard() {
       reader.readAsDataURL(file);
     }
   };
+
   // Add new product
   const addProduct = async () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.unitPrice) {
       showMessage('Please fill all required fields!', 'error');
       return;
     }
+
     try {
       await axios.post('http://localhost:8080/api/products', {
         name: newProduct.name,
@@ -146,12 +151,14 @@ function Dashboard() {
       showMessage(text, 'error');
     }
   };
+
   // Add stock
   const addStock = async () => {
     if (!stockData.productId || !stockData.quantity) {
       showMessage('Please select product and enter quantity!', 'error');
       return;
     }
+
     try {
       const res = await axios.post('http://localhost:8080/api/inventory/add', {
         productId: parseInt(stockData.productId),
@@ -167,12 +174,14 @@ function Dashboard() {
       showMessage('⚠️ Error adding stock', 'error');
     }
   };
+
   // Reduce stock
   const reduceStock = async () => {
     if (!stockData.productId || !stockData.quantity) {
       showMessage('Please select product and enter quantity!', 'error');
       return;
     }
+
     try {
       const res = await axios.post('http://localhost:8080/api/inventory/reduce', {
         productId: parseInt(stockData.productId),
@@ -193,6 +202,7 @@ function Dashboard() {
       showMessage('⚠️ Error reducing stock', 'error');
     }
   };
+
   // Open Edit Modal
   const startEdit = (item) => {
     const p = getProductDetails(item.productId);
@@ -207,12 +217,14 @@ function Dashboard() {
     });
     setShowEditProduct(true);
   };
+
   // Save product edits
   const saveEditedProduct = async () => {
     if (!editProductData.name || !editProductData.sku || !editProductData.unitPrice) {
       showMessage('Please fill required fields (Name, SKU, Price)!', 'error');
       return;
     }
+
     try {
       await axios.put(`http://localhost:8080/api/products/${editingProduct.productId}`, {
         name: editProductData.name,
@@ -232,6 +244,7 @@ function Dashboard() {
       showMessage(text, 'error');
     }
   };
+
   // Delete product
   const confirmDeleteProduct = async () => {
     try {
@@ -244,6 +257,7 @@ function Dashboard() {
       showMessage('⚠️ Error deleting product', 'error');
     }
   };
+
   // Export report to CSV
   const exportToCSV = () => {
     const headers = ['Product ID', 'Product Name', 'SKU', 'Category', 'Unit Price ($)', 'QuantityOnHand', 'ReorderLevel', 'Status'];
@@ -274,6 +288,7 @@ function Dashboard() {
     document.body.removeChild(link);
     showMessage('📂 CSV Report downloaded!', 'success');
   };
+
   // Export report to PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -325,15 +340,12 @@ function Dashboard() {
     doc.save(`SCM_Inventory_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     showMessage('📄 PDF Report downloaded!', 'success');
   };
-  // Logout handler
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('role');
-    navigate('/login');
-  };
+
+
+
   // Dynamic values for Category filter dropdown
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
   // Dynamic filter and sort logic
   const filteredInventory = inventory.filter(item => {
     const p = getProductDetails(item.productId);
@@ -363,12 +375,15 @@ function Dashboard() {
     }
     return a.productId - b.productId; // Sort by ID
   });
+
   // Chart Data Calculations (Top 5 items by stock level)
   const topStockItems = [...inventory]
     .map(item => ({ item, details: getProductDetails(item.productId) }))
     .sort((a, b) => b.item.quantityOnHand - a.item.quantityOnHand)
     .slice(0, 5);
+
   const maxQty = Math.max(...inventory.map(item => item.quantityOnHand), 10);
+
   // Category counts calculations for Pie Donut chart
   const categoryCounts = {};
   products.forEach(p => {
@@ -379,6 +394,7 @@ function Dashboard() {
 
   // Custom Donut colors
   const donutColors = ['#0f172a', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#8b5cf6', '#ec4899'];
+
   return (
     <div className="app dashboard-container">
       {/* Header */}
@@ -386,21 +402,16 @@ function Dashboard() {
         <div>
           <h1>Inventory Management System</h1>
           <p>Track your products and stock levels easily</p>
-          <div className="user-profile-badge">
-            <span>👤 {localStorage.getItem('username') || 'Guest'}</span>
-            <span className="role-tag">{localStorage.getItem('role') || 'USER'}</span>
-          </div>
-        </div>
-        <div>
-          <button className="btn btn-danger" onClick={handleLogout}>Logout</button>
         </div>
       </header>
+
       {/* Floating Status Message */}
       {message.text && (
         <div className={`message ${message.type}`}>
           {message.text}
         </div>
       )}
+
       {/* Summary Cards */}
       <div className="stats">
         <div className="stat-card">
@@ -418,6 +429,7 @@ function Dashboard() {
           <div className="stat-label">Low Stock Alerts</div>
         </div>
       </div>
+
       {/* Dashboard Custom SVG Charts Section */}
       {inventory.length > 0 && (
         <div className="charts-grid">
@@ -440,6 +452,7 @@ function Dashboard() {
                     const pct = data.item.quantityOnHand / maxQty;
                     const barHeight = Math.max(pct * 150, 6); // At least 6px for visibility
                     const y = 200 - barHeight;
+
                     return (
                       <g key={data.item.inventoryId}>
                         {/* Bar */}
@@ -484,6 +497,7 @@ function Dashboard() {
               )}
             </div>
           </div>
+
           {/* Chart 2: Donut Chart (Category Distribution) */}
           <div className="chart-card">
             <h3>🏷️ Product Categories Distribution</h3>
@@ -503,6 +517,7 @@ function Dashboard() {
                         // Accumulate offset
                         localOffset += strokeLength;
                         const color = donutColors[index % donutColors.length];
+
                         return (
                           <circle
                             key={cat}
@@ -550,6 +565,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Action Buttons */}
       <div className="actions">
         <button className="btn btn-primary" onClick={() => setShowAddProduct(true)}>
@@ -565,6 +581,7 @@ function Dashboard() {
           📄 Export PDF Report
         </button>
       </div>
+
       {/* Advanced Search & Filtering Controls */}
       <div className="filter-bar">
         <div className="filter-group search">
@@ -631,6 +648,7 @@ function Dashboard() {
           </div>
         )}
       </div>
+
       {/* Inventory Table Container */}
       <div className="inventory-table">
         <h2>Current Inventory</h2>
@@ -719,6 +737,7 @@ function Dashboard() {
           </div>
         )}
       </div>
+
       {/* Lightbox Fullscreen Preview Overlay */}
       {lightboxImage && (
         <div className="lightbox" onClick={() => setLightboxImage(null)}>
@@ -729,6 +748,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Add Product Modal */}
       {showAddProduct && (
         <div className="modal">
@@ -794,6 +814,7 @@ function Dashboard() {
                 )}
               </div>
             </div>
+
             <div className="modal-buttons">
               <button className="btn btn-success" onClick={addProduct}>Save Product</button>
               <button className="btn btn-secondary" onClick={() => setShowAddProduct(false)}>Cancel</button>
@@ -801,6 +822,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Stock Operations Modal */}
       {showStockOps && (
         <div className="modal">
@@ -844,6 +866,7 @@ function Dashboard() {
                 onChange={(e) => setStockData({...stockData, referenceDoc: e.target.value})}
               />
             </div>
+
             <div className="modal-buttons">
               <button className="btn btn-primary" onClick={addStock}>Add Stock (IN)</button>
               <button className="btn btn-warning" onClick={reduceStock}>Reduce Stock (OUT)</button>
@@ -852,6 +875,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Edit Product Modal */}
       {showEditProduct && editingProduct && (
         <div className="modal">
@@ -903,6 +927,7 @@ function Dashboard() {
                 onChange={(e) => setEditProductData({...editProductData, reorderLevel: e.target.value})}
               />
             </div>
+
             {/* Image Upload Input in Edit */}
             <div className="image-upload-container">
               <label>Product Cover Image</label>
@@ -921,6 +946,7 @@ function Dashboard() {
                 )}
               </div>
             </div>
+
             <div className="modal-buttons">
               <button className="btn btn-success" onClick={saveEditedProduct}>Save Changes</button>
               <button className="btn btn-secondary" onClick={() => setShowEditProduct(false)}>Cancel</button>
@@ -928,6 +954,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="modal">
@@ -945,6 +972,7 @@ function Dashboard() {
           </div>
         </div>
       )}
+
       {/* Footer */}
       <footer className="footer">
         <p>Inventory Management System • </p>
@@ -952,4 +980,5 @@ function Dashboard() {
     </div>
   );
 }
+
 export default Dashboard;
