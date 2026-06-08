@@ -142,7 +142,7 @@ function Dashboard() {
         image: newProduct.image
       });
 
-      showMessage('🎉 Product added successfully!', 'success');
+      showMessage(' Product added successfully!', 'success');
       setNewProduct({ name: '', sku: '', category: '', unitPrice: '', image: null });
       setShowAddProduct(false);
       loadInventory();
@@ -166,12 +166,12 @@ function Dashboard() {
         referenceDoc: stockData.referenceDoc || 'MANUAL-IN'
       });
 
-      showMessage(`📈 Added ${stockData.quantity} units! (Previous: ${res.data.previousQuantity} → New: ${res.data.newQuantity})`, 'success');
+      showMessage(` Added ${stockData.quantity} units! (Previous: ${res.data.previousQuantity} → New: ${res.data.newQuantity})`, 'success');
       setStockData({ productId: '', quantity: '', referenceDoc: '' });
       setShowStockOps(false);
       loadInventory();
     } catch (error) {
-      showMessage('⚠️ Error adding stock', 'error');
+      showMessage(' Error adding stock', 'error');
     }
   };
 
@@ -190,16 +190,16 @@ function Dashboard() {
       });
 
       if (res.data.success !== false) {
-        showMessage(`📉 Reduced ${stockData.quantity} units! (Previous: ${res.data.previousQuantity} → New: ${res.data.newQuantity})`, 'success');
+        showMessage(` Reduced ${stockData.quantity} units! (Previous: ${res.data.previousQuantity} → New: ${res.data.newQuantity})`, 'success');
       } else {
-        showMessage(`⚠️ ${res.data.error}`, 'error');
+        showMessage(` ${res.data.error}`, 'error');
       }
 
       setStockData({ productId: '', quantity: '', referenceDoc: '' });
       setShowStockOps(false);
       loadInventory();
     } catch (error) {
-      showMessage('⚠️ Error reducing stock', 'error');
+      showMessage('️ Error reducing stock', 'error');
     }
   };
 
@@ -235,7 +235,7 @@ function Dashboard() {
         reorderLevel: editProductData.reorderLevel ? parseInt(editProductData.reorderLevel) : null
       });
 
-      showMessage('💾 Product updated successfully!', 'success');
+      showMessage(' Product updated successfully!', 'success');
       setShowEditProduct(false);
       setEditingProduct(null);
       loadInventory();
@@ -249,12 +249,12 @@ function Dashboard() {
   const confirmDeleteProduct = async () => {
     try {
       await axios.delete(`http://localhost:8080/api/products/${deleteProductId}`);
-      showMessage('🗑️ Product deleted successfully!', 'success');
+      showMessage('Product deleted successfully!', 'success');
       setShowDeleteConfirm(false);
       setDeleteProductId(null);
       loadInventory();
     } catch (error) {
-      showMessage('⚠️ Error deleting product', 'error');
+      showMessage('Error deleting product', 'error');
     }
   };
 
@@ -286,7 +286,7 @@ function Dashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showMessage('📂 CSV Report downloaded!', 'success');
+    showMessage(' CSV Report downloaded!', 'success');
   };
 
   // Export report to PDF
@@ -338,7 +338,7 @@ function Dashboard() {
     });
 
     doc.save(`SCM_Inventory_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-    showMessage('📄 PDF Report downloaded!', 'success');
+    showMessage(' PDF Report downloaded!', 'success');
   };
 
 
@@ -435,7 +435,7 @@ function Dashboard() {
         <div className="charts-grid">
           {/* Chart 1: Bar Chart (Top 5 Stock Levels) */}
           <div className="chart-card">
-            <h3>📈 Top 5 Products by Stock Level</h3>
+            <h3>Top 5 Products by Stock Level</h3>
             <div className="chart-container">
               {topStockItems.length > 0 ? (
                 <svg className="svg-chart" viewBox="0 0 500 250">
@@ -500,7 +500,7 @@ function Dashboard() {
 
           {/* Chart 2: Donut Chart (Category Distribution) */}
           <div className="chart-card">
-            <h3>🏷️ Product Categories Distribution</h3>
+            <h3>Product Categories Distribution</h3>
             <div className="chart-container" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
               {products.length > 0 ? (
                 <>
@@ -569,16 +569,16 @@ function Dashboard() {
       {/* Action Buttons */}
       <div className="actions">
         <button className="btn btn-primary" onClick={() => setShowAddProduct(true)}>
-          ➕ Add New Product
+           Add New Product
         </button>
         <button className="btn btn-success" onClick={() => setShowStockOps(true)}>
-          ⚡ Stock Operations
+          Stock Operations
         </button>
         <button className="btn btn-secondary" onClick={exportToCSV}>
-          📂 Export CSV Report
+          Export CSV Report
         </button>
         <button className="btn btn-secondary" onClick={exportToPDF}>
-          📄 Export PDF Report
+           Export PDF Report
         </button>
       </div>
 
