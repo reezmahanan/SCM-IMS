@@ -23,7 +23,7 @@ A full-stack **Inventory Management System** built with **Spring Boot**, **React
 
 ### 📊 Inventory Management
 
-* Real-time stock tracking
+* Real-time stocks tracking
 * Add stock (IN transactions)
 * Reduce stock (OUT transactions)
 * Transaction history logging
